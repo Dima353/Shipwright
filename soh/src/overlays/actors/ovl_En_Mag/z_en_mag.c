@@ -48,7 +48,7 @@ const char* noControllerMsg[] = {
 };
 
 const char* pressStartMsg[] = {
-    "PRESS START",
+    "HAQMN CTAPT",
     "DRUCKE START",
     "APPUYEZ SUR START",
 };
