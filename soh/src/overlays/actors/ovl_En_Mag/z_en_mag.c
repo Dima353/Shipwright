@@ -446,7 +446,7 @@ bool EnMag_ShouldDrawNoController(Font* font, Gfx** gfxP, bool isActualText) {
 }
 
 bool EnMag_ShouldDrawPressStart(Font* font, Gfx** gfxP, bool isActualText) {
-    if (!CVarGetInteger(CVAR_SETTING("TitleScreenTranslation"), 0) || !ResourceMgr_IsPalLoaded()) {
+    if (!CVarGetInteger(CVAR_SETTING("TitleScreenTranslation"), 1 || !ResourceMgr_IsPalLoaded()) {
         return true;
     }
     Gfx* gfx = *gfxP;
