@@ -710,7 +710,7 @@ void SohMenu::AddMenuEnhancements() {
         })
         .Options(IntSliderOptions().Min(1).Max(5).DefaultValue(1).Format("%dx").Tooltip(
             "Increases the range in which Actors/Objects are drawn."));
-    AddWidget(path, "Kokiri Draw Distance", WIDGET_CVAR_CHECKBOX)
+    AddWidget(path, "Disable Kokiri Fade", WIDGET_CVAR_CHECKBOX)
         .CVar(CVAR_ENHANCEMENT("DisableKokiriDrawDistance"))
         .RaceDisable(false)
         .PreFunc(
@@ -740,7 +740,7 @@ void SohMenu::AddMenuEnhancements() {
             " - Boulders\n"
             " - Blue Warps\n"
             " - Darunia\n"
-            " - Gold Skulltulas\n"));
+            " - Gold Skulltulas"));
 
     path.sidebarName = "Items";
     AddSidebarEntry("Enhancements", path.sidebarName, 3);
@@ -776,6 +776,9 @@ void SohMenu::AddMenuEnhancements() {
             "Allows Strength to be toggled on and off by pressing A on the Strength Upgrade "
             "in the Equipment Subscreen of the Pause Menu. This allows performing some glitches "
             "that require the player to not have Strength."));
+    AddWidget(path, "Unsheathe Sword Without Slashing", WIDGET_CVAR_CHECKBOX)
+        .CVar(CVAR_ENHANCEMENT("UnsheatheWithoutSlashing"))
+        .Options(CheckboxOptions().Tooltip("Allows Link to unsheathe sword without slashing automatically."));
     AddWidget(path, "Sword Toggle Options", WIDGET_CVAR_COMBOBOX)
         .CVar(CVAR_ENHANCEMENT("SwordToggle"))
         .PreFunc(
@@ -840,6 +843,12 @@ void SohMenu::AddMenuEnhancements() {
         .Options(CheckboxOptions().Tooltip("Turns Bunny Hood Invisible while still maintaining its effects."));
     AddWidget(path, "Mask Select in Inventory", WIDGET_CVAR_CHECKBOX)
         .CVar(CVAR_ENHANCEMENT("MaskSelect"))
+        .PreFunc([](WidgetInfo& info) {
+            info.options->disabled =
+                OTRGlobals::Instance->gRandoContext->GetOption(RSK_MASK_QUEST).IsNot(RO_MASK_QUEST_VANILLA);
+            info.options->disabledTooltip =
+                "This setting is forcefully enabled when Mask Quest is Completed from the start or Shuffled";
+        })
         .Options(CheckboxOptions().Tooltip(
             "After completing the mask trading sub-quest, press A and any direction on the mask "
             "slot to change masks."));
@@ -1127,7 +1136,7 @@ void SohMenu::AddMenuEnhancements() {
                 .Tooltip("Disabled: Paths vanish more the higher the resolution (Z-Fighting is based on resolution).\n"
                          "Consistent: Certain paths vanish the same way in all resolutions.\n"
                          "No Vanish: Paths do not vanish, Link seems to sink in to some paths.\n"
-                         "This might affect other decal effects.\n"));
+                         "This might affect other decal effects."));
 
     AddWidget(path, "Audio Fixes", WIDGET_SEPARATOR_TEXT);
     AddWidget(path, "Fix Missing Jingle after 5 Silver Rupees", WIDGET_CVAR_CHECKBOX)
@@ -1575,7 +1584,7 @@ void SohMenu::AddMenuEnhancements() {
                     " - Dungeons (Vanilla): Mirror the world in Vanilla Dungeons.\n"
                     " - Dungeons (MQ): Mirror the world in MQ Dungeons.\n"
                     " - Dungeons Random: Randomly decide to mirror the world in Dungeons.\n"
-                    " - Dungeons Random (Seeded): Dungeons are mirrored based on the current randomizer seed/file.\n"));
+                    " - Dungeons Random (Seeded): Dungeons are mirrored based on the current randomizer seed/file."));
     AddWidget(path, "Ivan the Fairy (Coop Mode)", WIDGET_CVAR_CHECKBOX)
         .CVar(CVAR_ENHANCEMENT("IvanCoopModeEnabled"))
         .Options(CheckboxOptions().Tooltip(
@@ -1673,7 +1682,7 @@ void SohMenu::AddMenuEnhancements() {
                          "Enemies that need more than Deku Nuts & either Deku Sticks or a sword to kill are excluded "
                          "from spawning in \"clear enemy\" rooms.\n\n"
                          "- Random: Enemies are randomized every time you load a room.\n"
-                         "- Random (Seeded): Enemies are randomized based on the current randomizer seed/file.\n"));
+                         "- Random (Seeded): Enemies are randomized based on the current randomizer seed/file."));
     AddWidget(path, "Randomized Enemy Sizes", WIDGET_CVAR_CHECKBOX)
         .CVar(CVAR_ENHANCEMENT("RandomizedEnemySizes"))
         .Options(CheckboxOptions().Tooltip("Enemies and Bosses spawn with random sizes."));
@@ -1821,6 +1830,24 @@ void SohMenu::AddMenuEnhancements() {
         .Callback([](WidgetInfo& info) { SwitchAge(); });
 
     path.column = SECTION_COLUMN_3;
+    AddWidget(path, "Speed Modifier", WIDGET_SEPARATOR_TEXT);
+    AddWidget(path, "Toggle modifier instead of holding", WIDGET_CVAR_CHECKBOX)
+        .CVar(CVAR_CHEAT("SpeedModifier.SpeedToggle"));
+    AddWidget(path, "Don't affect jump distance/velocity", WIDGET_CVAR_CHECKBOX)
+        .CVar(CVAR_CHEAT("SpeedModifier.DoesntChangeJump"));
+    AddWidget(path, "Multiplier:", WIDGET_CVAR_SLIDER_FLOAT)
+        .CVar(CVAR_CHEAT("SpeedModifier.Value"))
+        .Options(FloatSliderOptions().IsPercentage().Min(1.0f).Max(5.0f).DefaultValue(1.0f).ShowButtons(true).Format(
+            "%.0f%%"));
+    AddWidget(path, "Button Combination:", WIDGET_CVAR_BTN_SELECTOR)
+        .CVar(CVAR_CHEAT("SpeedModifier.Btn"))
+        .Options(
+            BtnSelectorOptions()
+                .DefaultValue(BTN_CUSTOM_MODIFIER1)
+                .Tooltip("Buttons that activate Speed Modifier 1.\n\n"
+                         "If \"Toggle modifier instead of holding\" is off, hold this combo to apply the modifier.\n"
+                         "If it is on, tap this combo to toggle the modifier on/off."));
+
     AddWidget(path, "Save States", WIDGET_SEPARATOR_TEXT);
     AddWidget(path, ICON_FA_EXCLAMATION_TRIANGLE " WARNING!!!! " ICON_FA_EXCLAMATION_TRIANGLE, WIDGET_TEXT)
         .Options(TextOptions().Color(Colors::Orange));
