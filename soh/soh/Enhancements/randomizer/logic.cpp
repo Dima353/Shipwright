@@ -1330,7 +1330,15 @@ bool Logic::CanBreakSmallCrates() {
     return CanJumpslash() || HasExplosives() || HasItem(RG_POWER_BRACELET);
 }
 
+bool Logic::CanBreakRocks() {
+    return BlastOrSmash() || HasItem(RG_POWER_BRACELET);
+}
+
 bool Logic::CanBonkTrees() {
+    return true;
+}
+
+bool Logic::CanRead() {
     return true;
 }
 

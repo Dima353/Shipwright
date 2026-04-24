@@ -2,7 +2,7 @@
 #include "soh/Enhancements/randomizer/randomizerTypes.h"
 #include "trial.h"
 #include "dungeon.h"
-#include "3drando/random.hpp"
+#include "soh/ShipUtils.h"
 
 #include "soh/OTRGlobals.h"
 
@@ -564,7 +564,7 @@ void Settings::CreateOptions() {
     OPT_U8(RSK_MQ_ICE_CAVERN, "Ice Cavern Quest", {"Vanilla", "Master Quest", "Random"}, OptionCategory::Setting, CVAR_RANDOMIZER_SETTING("MQDungeonsIceCavern"), "", WIDGET_CVAR_COMBOBOX, RO_MQ_SET_VANILLA, false, nullptr, IMFLAG_NONE);
     OPT_U8(RSK_MQ_GTG, "Gerudo Training Ground Quest", {"Vanilla", "Master Quest", "Random"}, OptionCategory::Setting, CVAR_RANDOMIZER_SETTING("MQDungeonsGTG"), "", WIDGET_CVAR_COMBOBOX, RO_MQ_SET_VANILLA, false, nullptr, IMFLAG_NONE);
     OPT_U8(RSK_MQ_GANONS_CASTLE, "Ganon's Castle Quest", {"Vanilla", "Master Quest", "Random"}, OptionCategory::Setting, CVAR_RANDOMIZER_SETTING("MQDungeonsGanonsCastle"), "", WIDGET_CVAR_COMBOBOX, RO_MQ_SET_VANILLA);
-    OPT_U8(RSK_SHUFFLE_DUNGEON_REWARDS, "Shuffle Dungeon Rewards", {"Vanilla", "End of Dungeons", "Any Dungeon", "Overworld", "Anywhere"}, OptionCategory::Setting, CVAR_RANDOMIZER_SETTING("ShuffleDungeonReward"), mOptionDescriptions[RSK_SHUFFLE_DUNGEON_REWARDS], WIDGET_CVAR_COMBOBOX, RO_DUNGEON_REWARDS_END_OF_DUNGEON);
+    OPT_U8(RSK_SHUFFLE_DUNGEON_REWARDS, "Shuffle Dungeon Rewards", {"Vanilla", "End of Dungeons", "Own Dungeon", "Any Dungeon", "Overworld", "Anywhere"}, OptionCategory::Setting, CVAR_RANDOMIZER_SETTING("ShuffleDungeonReward"), mOptionDescriptions[RSK_SHUFFLE_DUNGEON_REWARDS], WIDGET_CVAR_COMBOBOX, RO_DUNGEON_REWARDS_END_OF_DUNGEON);
     OPT_CALLBACK(RSK_SHUFFLE_DUNGEON_REWARDS, {
         // Link's Pocket - Disabled when Dungeon Rewards are shuffled to End of Dungeon
         if (CVarGetInteger(CVAR_RANDOMIZER_SETTING("ShuffleDungeonReward"), RO_DUNGEON_REWARDS_END_OF_DUNGEON) ==
@@ -573,32 +573,39 @@ void Settings::CreateOptions() {
                 "This option is disabled because \"Dungeon Rewards\" are shuffled to \"End of Dungeons\".");
             mOptions[RSK_LINKS_POCKET_REWARD].Enable();
             mOptions[RSK_LINKS_POCKET_REWARD].Unhide();
-        } else if (CVarGetInteger(CVAR_RANDOMIZER_SETTING("ShuffleDungeonReward"), RO_DUNGEON_REWARDS_END_OF_DUNGEON) ==
-            RO_DUNGEON_REWARDS_VANILLA) {
-            mOptions[RSK_LINKS_POCKET_REWARD].Disable("This option is disabled because \"Dungeon Rewards\" are shuffled to \"Vanilla\".");
-            mOptions[RSK_LINKS_POCKET_REWARD].Hide();
-            mOptions[RSK_LINKS_POCKET].Enable();
         } else {
-            mOptions[RSK_LINKS_POCKET].Enable();
-            mOptions[RSK_LINKS_POCKET_REWARD].Enable();
+            if (CVarGetInteger(CVAR_RANDOMIZER_SETTING("ShuffleDungeonReward"), RO_DUNGEON_REWARDS_END_OF_DUNGEON) ==
+                RO_DUNGEON_REWARDS_OWN_DUNGEON) {
+                mOptions[RSK_LINKS_POCKET].Enable();
+                mOptions[RSK_LINKS_POCKET_REWARD].Disable(
+                    "As \"Link's Pocket\" is set to \"Dungeon Reward\" while \"Dungeon Rewards\" is set to \"Own Dungeon\", Link's Pocket will always have the Light Medallion");
+            }else if (CVarGetInteger(CVAR_RANDOMIZER_SETTING("ShuffleDungeonReward"), RO_DUNGEON_REWARDS_END_OF_DUNGEON) ==
+                RO_DUNGEON_REWARDS_VANILLA) {
+                mOptions[RSK_LINKS_POCKET].Enable();
+                mOptions[RSK_LINKS_POCKET_REWARD].Disable(
+                    "As \"Link's Pocket\" is set to \"Dungeon Reward\" while \"Dungeon Rewards\" is set to \"Vanilla\", Link's Pocket will always have the Light Medallion");
+            } else {
+                mOptions[RSK_LINKS_POCKET].Enable();
+                mOptions[RSK_LINKS_POCKET_REWARD].Enable();
+            }
             if (CVarGetInteger(CVAR_RANDOMIZER_SETTING("LinksPocket"), RO_LINKS_POCKET_DUNGEON_REWARD) == RO_LINKS_POCKET_DUNGEON_REWARD) {
                 mOptions[RSK_LINKS_POCKET_REWARD].Unhide();
-                }
+            } else {
+                mOptions[RSK_LINKS_POCKET_REWARD].Hide();
+            }  
         }
     });
-    OPT_U8(RSK_LINKS_POCKET, "Link's Pocket", {"Dungeon Reward", "Advancement", "Anything", "Nothing"}, OptionCategory::Setting, CVAR_RANDOMIZER_SETTING("LinksPocket"), "", WIDGET_CVAR_COMBOBOX, RO_LINKS_POCKET_DUNGEON_REWARD);
+    OPT_U8(RSK_LINKS_POCKET, "Link's Pocket", {"Dungeon Reward", "Advancement", "Anything", "Nothing"}, OptionCategory::Setting, CVAR_RANDOMIZER_SETTING("LinksPocket"), mOptionDescriptions[RSK_LINKS_POCKET], WIDGET_CVAR_COMBOBOX, RO_LINKS_POCKET_DUNGEON_REWARD);
     OPT_CALLBACK(RSK_LINKS_POCKET, {
         // Only show the dungeon reward type if Link's Pocket is set to Dungeon Reward and Dungeon Rewards are not Vanilla, OR Dungeon Rewards are end of dungeon
-        if ((CVarGetInteger(CVAR_RANDOMIZER_SETTING("LinksPocket"), RO_LINKS_POCKET_DUNGEON_REWARD) ==
-            RO_LINKS_POCKET_DUNGEON_REWARD && CVarGetInteger(CVAR_RANDOMIZER_SETTING("ShuffleDungeonReward"), RO_DUNGEON_REWARDS_END_OF_DUNGEON) !=
-            RO_DUNGEON_REWARDS_VANILLA) || CVarGetInteger(CVAR_RANDOMIZER_SETTING("ShuffleDungeonReward"), RO_DUNGEON_REWARDS_END_OF_DUNGEON) ==
-            RO_DUNGEON_REWARDS_END_OF_DUNGEON) {
+        if (CVarGetInteger(CVAR_RANDOMIZER_SETTING("LinksPocket"), RO_LINKS_POCKET_DUNGEON_REWARD) == RO_LINKS_POCKET_DUNGEON_REWARD || 
+            CVarGetInteger(CVAR_RANDOMIZER_SETTING("ShuffleDungeonReward"), RO_DUNGEON_REWARDS_END_OF_DUNGEON) == RO_DUNGEON_REWARDS_END_OF_DUNGEON) {
             mOptions[RSK_LINKS_POCKET_REWARD].Unhide();
         } else {
             mOptions[RSK_LINKS_POCKET_REWARD].Hide();
         }
     });
-    OPT_U8(RSK_LINKS_POCKET_REWARD, "Link's Pocket Reward Type", {"Dungeon Reward", "Stone", "Medallion"}, OptionCategory::Setting, CVAR_RANDOMIZER_SETTING("LinksPocketReward"), "", WIDGET_CVAR_COMBOBOX, RO_LINKS_POCKET_REWARD);
+    OPT_U8(RSK_LINKS_POCKET_REWARD, "Link's Pocket Reward Type", {"Any Reward", "Any Stone", "Any Medallion", "Light Medallion"}, OptionCategory::Setting, CVAR_RANDOMIZER_SETTING("LinksPocketReward"), mOptionDescriptions[RSK_LINKS_POCKET_REWARD], WIDGET_CVAR_COMBOBOX, RO_LINKS_POCKET_ANY_REWARD);
     OPT_U8(RSK_SHUFFLE_SONGS, "Shuffle Songs", {"Off", "Song Locations", "Dungeon Rewards", "Anywhere"}, OptionCategory::Setting, CVAR_RANDOMIZER_SETTING("ShuffleSongs"), mOptionDescriptions[RSK_SHUFFLE_SONGS], WIDGET_CVAR_COMBOBOX, RO_SONG_SHUFFLE_SONG_LOCATIONS);
     OPT_U8(RSK_SHOPSANITY, "Shop Shuffle", {"Off", "Specific Count", "Random"}, OptionCategory::Setting, CVAR_RANDOMIZER_SETTING("Shopsanity"), mOptionDescriptions[RSK_SHOPSANITY], WIDGET_CVAR_COMBOBOX, RO_SHOPSANITY_OFF);
     OPT_CALLBACK(RSK_SHOPSANITY, {
@@ -839,8 +846,13 @@ void Settings::CreateOptions() {
     OPT_U8(RSK_SHUFFLE_POTS, "Shuffle Pots", {"Off", "Dungeons", "Overworld", "All Pots"}, OptionCategory::Setting, CVAR_RANDOMIZER_SETTING("ShufflePots"), mOptionDescriptions[RSK_SHUFFLE_POTS], WIDGET_CVAR_COMBOBOX, RO_SHUFFLE_POTS_OFF);
     OPT_U8(RSK_SHUFFLE_GRASS, "Shuffle Grass", {"Off", "Dungeons", "Overworld", "All Grass"}, OptionCategory::Setting, CVAR_RANDOMIZER_SETTING("ShuffleGrass"), mOptionDescriptions[RSK_SHUFFLE_GRASS], WIDGET_CVAR_COMBOBOX, RO_SHUFFLE_GRASS_OFF);
     OPT_U8(RSK_SHUFFLE_CRATES, "Shuffle Crates", {"Off", "Dungeons", "Overworld", "All Crates"}, OptionCategory::Setting, CVAR_RANDOMIZER_SETTING("ShuffleCrates"), mOptionDescriptions[RSK_SHUFFLE_CRATES], WIDGET_CVAR_COMBOBOX, RO_SHUFFLE_CRATES_OFF);
+    OPT_BOOL(RSK_SHUFFLE_ROCKS, "Shuffle Rocks", CVAR_RANDOMIZER_SETTING("ShuffleRocks"), mOptionDescriptions[RSK_SHUFFLE_ROCKS]);
+    OPT_U8(RSK_SHUFFLE_BOULDERS, "Shuffle Boulders", {"Off", "Dungeons", "Overworld", "All Boulders"}, OptionCategory::Setting, CVAR_RANDOMIZER_SETTING("ShuffleBoulders"), mOptionDescriptions[RSK_SHUFFLE_BOULDERS], WIDGET_CVAR_COMBOBOX, RO_SHUFFLE_BOULDERS_OFF);
     OPT_BOOL(RSK_SHUFFLE_TREES, "Shuffle Trees", CVAR_RANDOMIZER_SETTING("ShuffleTrees"), mOptionDescriptions[RSK_SHUFFLE_TREES]);
     OPT_BOOL(RSK_SHUFFLE_BUSHES, "Shuffle Bushes", CVAR_RANDOMIZER_SETTING("ShuffleBushes"), mOptionDescriptions[RSK_SHUFFLE_BUSHES]);
+    OPT_BOOL(RSK_SHUFFLE_ICICLES, "Shuffle Icicles", CVAR_RANDOMIZER_SETTING("ShuffleIcicles"), mOptionDescriptions[RSK_SHUFFLE_ICICLES]);
+    OPT_BOOL(RSK_SHUFFLE_RED_ICE, "Shuffle Red Ice", CVAR_RANDOMIZER_SETTING("ShuffleRedIce"), mOptionDescriptions[RSK_SHUFFLE_RED_ICE]);
+    OPT_U8(RSK_SHUFFLE_SIGNS, "Shuffle Signs", {"Off", "Dungeons", "Overworld", "All Signs"}, OptionCategory::Setting, CVAR_RANDOMIZER_SETTING("ShuffleSigns"), mOptionDescriptions[RSK_SHUFFLE_SIGNS], WIDGET_CVAR_COMBOBOX, RO_SHUFFLE_SIGNS_OFF);
     OPT_BOOL(RSK_SHUFFLE_FISHING_POLE, "Shuffle Fishing Pole", CVAR_RANDOMIZER_SETTING("ShuffleFishingPole"), mOptionDescriptions[RSK_SHUFFLE_FISHING_POLE]);
     OPT_CALLBACK(RSK_SHUFFLE_FISHING_POLE, {
         // Disable fishing pole hint if the fishing pole is not shuffled
@@ -1008,6 +1020,7 @@ void Settings::CreateOptions() {
     OPT_U8(RSK_MERCHANT_PRICES_GIANT_WALLET_WEIGHT, "Merchant Giant Wallet Weight", {NumOpts(0, 100)}, OptionCategory::Setting, CVAR_RANDOMIZER_SETTING("MerchantGiantWalletWeight"), mOptionDescriptions[RSK_MERCHANT_PRICES_GIANT_WALLET_WEIGHT], WIDGET_CVAR_SLIDER_INT, 10, true, nullptr, IMFLAG_NONE);
     OPT_U8(RSK_MERCHANT_PRICES_TYCOON_WALLET_WEIGHT, "Merchant Tycoon Wallet Weight", {NumOpts(0, 100)}, OptionCategory::Setting, CVAR_RANDOMIZER_SETTING("MerchantTycoonWalletWeight"), mOptionDescriptions[RSK_MERCHANT_PRICES_TYCOON_WALLET_WEIGHT], WIDGET_CVAR_SLIDER_INT, 10, true, nullptr, IMFLAG_NONE);
     OPT_BOOL(RSK_MERCHANT_PRICES_AFFORDABLE, "Merchant Affordable Prices", CVAR_RANDOMIZER_SETTING("MerchantPricesAffordable"), mOptionDescriptions[RSK_MERCHANT_PRICES_AFFORDABLE]);
+    OPT_BOOL(RSK_SHUFFLE_BEGGAR, "Shuffle Beggar", CVAR_RANDOMIZER_SETTING("ShuffleBeggar"), mOptionDescriptions[RSK_SHUFFLE_BEGGAR]);
     OPT_BOOL(RSK_SHUFFLE_FROG_SONG_RUPEES, "Shuffle Frog Song Rupees", CVAR_RANDOMIZER_SETTING("ShuffleFrogSongRupees"), mOptionDescriptions[RSK_SHUFFLE_FROG_SONG_RUPEES]);
     OPT_BOOL(RSK_SHUFFLE_ADULT_TRADE, "Shuffle Adult Trade", CVAR_RANDOMIZER_SETTING("ShuffleAdultTrade"), mOptionDescriptions[RSK_SHUFFLE_ADULT_TRADE]);
     OPT_U8(RSK_SHUFFLE_CHEST_MINIGAME, "Shuffle Chest Minigame", {"Off", "On (Separate)", "On (Pack)"});
@@ -1038,6 +1051,7 @@ void Settings::CreateOptions() {
         }
     });
     OPT_U8(RSK_SHUFFLE_FREESTANDING, "Shuffle Freestanding Items", {"Off", "Dungeons", "Overworld", "All Items"}, OptionCategory::Setting, CVAR_RANDOMIZER_SETTING("ShuffleFreestanding"), mOptionDescriptions[RSK_SHUFFLE_FREESTANDING], WIDGET_CVAR_COMBOBOX, RO_SHUFFLE_FREESTANDING_OFF);
+    OPT_U8(RSK_SHUFFLE_WONDER_ITEMS, "Shuffle Wonder Items", {"Off", "Dungeons", "Overworld", "All Items"}, OptionCategory::Setting, CVAR_RANDOMIZER_SETTING("ShuffleWonderItems"), mOptionDescriptions[RSK_SHUFFLE_WONDER_ITEMS], WIDGET_CVAR_COMBOBOX, RO_SHUFFLE_WONDER_ITEMS_OFF);
     OPT_U8(RSK_FISHSANITY, "Fishsanity", {"Off", "Shuffle only Hyrule Loach", "Shuffle Fishing Pond", "Shuffle Overworld Fish", "Shuffle Both"}, OptionCategory::Setting, CVAR_RANDOMIZER_SETTING("Fishsanity"), mOptionDescriptions[RSK_FISHSANITY], WIDGET_CVAR_COMBOBOX, RO_FISHSANITY_OFF);
     OPT_CALLBACK(RSK_FISHSANITY, {
         // Hide fishing pond settings if we aren't shuffling the fishing pond
@@ -1461,6 +1475,8 @@ void Settings::CreateOptions() {
     OPT_TRICK(RT_GROUND_JUMP_HARD, RCQUEST_BOTH, RA_NONE, { Tricks::Tag::INTERMEDIATE, Tricks::Tag::GLITCH },
               "HGrdJmp");
     OPT_TRICK(RT_SLIDE_JUMP, RCQUEST_BOTH, RA_NONE, { Tricks::Tag::NOVICE }, "SldJmp");
+    OPT_TRICK(RT_VOIDOUT_COLLECTION, RCQUEST_BOTH, RA_NONE, { Tricks::Tag::NOVICE }, "VdCl");
+    OPT_TRICK(RT_BOMB_DETONATION, RCQUEST_BOTH, RA_NONE, { Tricks::Tag::NOVICE }, "BmbDet");
     OPT_TRICK(RT_KF_ADULT_GS, RCQUEST_BOTH, RA_KOKIRI_FOREST, { Tricks::Tag::NOVICE }, "KFGSHB");
     OPT_TRICK(RT_LW_BRIDGE, RCQUEST_BOTH, RA_THE_LOST_WOODS, { Tricks::Tag::EXPERT }, "LWBrgJmp");
     OPT_TRICK(RT_LW_MIDO_BACKFLIP, RCQUEST_BOTH, RA_THE_LOST_WOODS, { Tricks::Tag::NOVICE }, "MidoSkip");
@@ -1667,6 +1683,7 @@ void Settings::CreateOptions() {
               "GTGNoHS");
     OPT_TRICK(RT_GTG_FAKE_WALL, RCQUEST_BOTH, RA_GERUDO_TRAINING_GROUND, { Tricks::Tag::NOVICE }, "GTGWallHB");
     OPT_TRICK(RT_GTG_LAVA_JUMP, RCQUEST_BOTH, RA_GERUDO_TRAINING_GROUND, { Tricks::Tag::INTERMEDIATE }, "GTGLavaJmp");
+    OPT_TRICK(RT_GTG_STATUE_JUMP, RCQUEST_BOTH, RA_GERUDO_TRAINING_GROUND, { Tricks::Tag::INTERMEDIATE }, "GTGStJmp");
     OPT_TRICK(RT_LENS_GTG_MQ, RCQUEST_MQ, RA_GERUDO_TRAINING_GROUND, { Tricks::Tag::NOVICE }, "GTGMQLoT");
     OPT_TRICK(RT_GTG_MQ_WITH_HOOKSHOT, RCQUEST_MQ, RA_GERUDO_TRAINING_GROUND, { Tricks::Tag::NOVICE }, "GTGMQHS");
     OPT_TRICK(RT_GTG_MQ_WITHOUT_HOOKSHOT, RCQUEST_MQ, RA_GERUDO_TRAINING_GROUND, { Tricks::Tag::INTERMEDIATE },
@@ -1849,13 +1866,19 @@ void Settings::CreateOptions() {
                                   &mOptions[RSK_FISHSANITY_POND_COUNT],
                                   &mOptions[RSK_FISHSANITY_AGE_SPLIT],
                                   &mOptions[RSK_SHUFFLE_FREESTANDING],
+                                  &mOptions[RSK_SHUFFLE_WONDER_ITEMS],
                                   &mOptions[RSK_SHUFFLE_BEEHIVES],
                                   &mOptions[RSK_SHUFFLE_COWS],
                                   &mOptions[RSK_SHUFFLE_POTS],
                                   &mOptions[RSK_SHUFFLE_GRASS],
                                   &mOptions[RSK_SHUFFLE_CRATES],
+                                  &mOptions[RSK_SHUFFLE_BOULDERS],
+                                  &mOptions[RSK_SHUFFLE_ROCKS],
                                   &mOptions[RSK_SHUFFLE_TREES],
                                   &mOptions[RSK_SHUFFLE_BUSHES],
+                                  &mOptions[RSK_SHUFFLE_ICICLES],
+                                  &mOptions[RSK_SHUFFLE_RED_ICE],
+                                  &mOptions[RSK_SHUFFLE_SIGNS],
                                   &mOptions[RSK_SHUFFLE_FROG_SONG_RUPEES],
                                   &mOptions[RSK_SHUFFLE_ADULT_TRADE],
                                   &mOptions[RSK_SHUFFLE_100_GS_REWARD],
@@ -1905,6 +1928,7 @@ void Settings::CreateOptions() {
                                   &mOptions[RSK_MERCHANT_PRICES_GIANT_WALLET_WEIGHT],
                                   &mOptions[RSK_MERCHANT_PRICES_TYCOON_WALLET_WEIGHT],
                                   &mOptions[RSK_MERCHANT_PRICES_AFFORDABLE],
+                                  &mOptions[RSK_SHUFFLE_BEGGAR],
                               },
                               WidgetContainerType::SECTION);
     mOptionGroups[RSG_MENU_COLUMN_SHOP_SHUFFLES] =
@@ -2135,8 +2159,13 @@ void Settings::CreateOptions() {
                                             &mOptions[RSK_SHUFFLE_POTS],
                                             &mOptions[RSK_SHUFFLE_GRASS],
                                             &mOptions[RSK_SHUFFLE_CRATES],
+                                            &mOptions[RSK_SHUFFLE_BOULDERS],
+                                            &mOptions[RSK_SHUFFLE_ROCKS],
                                             &mOptions[RSK_SHUFFLE_TREES],
                                             &mOptions[RSK_SHUFFLE_BUSHES],
+                                            &mOptions[RSK_SHUFFLE_ICICLES],
+                                            &mOptions[RSK_SHUFFLE_RED_ICE],
+                                            &mOptions[RSK_SHUFFLE_SIGNS],
                                             &mOptions[RSK_SHUFFLE_KOKIRI_SWORD],
                                             &mOptions[RSK_SHUFFLE_OCARINA],
                                             &mOptions[RSK_SHUFFLE_OCARINA_BUTTONS],
@@ -2159,6 +2188,7 @@ void Settings::CreateOptions() {
                                             &mOptions[RSK_MERCHANT_PRICES_GIANT_WALLET_WEIGHT],
                                             &mOptions[RSK_MERCHANT_PRICES_TYCOON_WALLET_WEIGHT],
                                             &mOptions[RSK_MERCHANT_PRICES_AFFORDABLE],
+                                            &mOptions[RSK_SHUFFLE_BEGGAR],
                                             &mOptions[RSK_SHUFFLE_FROG_SONG_RUPEES],
                                             &mOptions[RSK_SHUFFLE_ADULT_TRADE],
                                             &mOptions[RSK_SHUFFLE_CHEST_MINIGAME],
@@ -2169,6 +2199,7 @@ void Settings::CreateOptions() {
                                             &mOptions[RSK_SHUFFLE_DEKU_STICK_BAG],
                                             &mOptions[RSK_SHUFFLE_DEKU_NUT_BAG],
                                             &mOptions[RSK_SHUFFLE_FREESTANDING],
+                                            &mOptions[RSK_SHUFFLE_WONDER_ITEMS],
                                             &mOptions[RSK_SHUFFLE_FOUNTAIN_FAIRIES],
                                             &mOptions[RSK_SHUFFLE_STONE_FAIRIES],
                                             &mOptions[RSK_SHUFFLE_BEAN_FAIRIES],
@@ -2502,6 +2533,13 @@ void Context::FinalizeSettings(const std::set<RandomizerCheck>& excludedLocation
 
     if (mOptions[RSK_SHUFFLE_DUNGEON_REWARDS].Is(RO_DUNGEON_REWARDS_END_OF_DUNGEON)) {
         mOptions[RSK_LINKS_POCKET].Set(RO_LINKS_POCKET_DUNGEON_REWARD);
+    } else if (mOptions[RSK_SHUFFLE_DUNGEON_REWARDS].Is(RO_DUNGEON_REWARDS_OWN_DUNGEON) ||
+               mOptions[RSK_SHUFFLE_DUNGEON_REWARDS].Is(RO_DUNGEON_REWARDS_VANILLA)) {
+        mOptions[RSK_LINKS_POCKET_REWARD].Set(RO_LINKS_POCKET_LIGHT_MEDALLION);
+    }
+
+    if (mOptions[RSK_LINKS_POCKET].IsNot(RO_LINKS_POCKET_DUNGEON_REWARD)) {
+        mOptions[RSK_LINKS_POCKET_REWARD].Set(RO_LINKS_POCKET_ANY_REWARD);
     }
 
     for (const auto locationKey : this->everyPossibleLocation) {
@@ -2569,7 +2607,7 @@ void Context::FinalizeSettings(const std::set<RandomizerCheck>& excludedLocation
                 case RO_MQ_SET_RANDOM:
                     // 50% per dungeon, rolled separatly so people can either have a linear distribtuion
                     // or a bell curve for the number of MQ dungeons per seed.
-                    if (Random(0, 2)) {
+                    if (ShipUtils::Random(0, 2)) {
                         dungeon->SetMQ();
                         mqSet += 1;
                     }
@@ -2636,13 +2674,13 @@ void Context::FinalizeSettings(const std::set<RandomizerCheck>& excludedLocation
         if (randMQOption.size() > 0) {
             // Figure out how many dungeons to select, rolling the random number if needed
             if (mOptions[RSK_MQ_DUNGEON_RANDOM].Is(RO_MQ_DUNGEONS_RANDOM_NUMBER)) {
-                mqToSet = Random(0, static_cast<int>(randMQOption.size()) + 1);
+                mqToSet = ShipUtils::Random(0, static_cast<int>(randMQOption.size()) + 1);
             } else if (mqCount > mqSet) {
                 mqToSet = std::min(mqCount - mqSet, static_cast<int>(randMQOption.size()));
             }
             // we only need to shuffle if we're not using them all
             if (mqToSet <= static_cast<int8_t>(randMQOption.size()) && mqToSet > 0) {
-                Shuffle(randMQOption);
+                ShipUtils::Shuffle(randMQOption);
             }
             for (uint8_t i = 0; i < mqToSet; i++) {
                 dungeons[randMQOption[i]]->SetMQ();
@@ -2691,8 +2729,8 @@ void Context::FinalizeSettings(const std::set<RandomizerCheck>& excludedLocation
         if (mOptions[RSK_KEYRINGS].Is(RO_KEYRINGS_RANDOM) || mOptions[RSK_KEYRINGS].Is(RO_KEYRINGS_COUNT)) {
             const uint32_t keyRingCount = mOptions[RSK_KEYRINGS].Is(RO_KEYRINGS_COUNT)
                                               ? mOptions[RSK_KEYRINGS_RANDOM_COUNT].Get()
-                                              : Random(0, static_cast<int>(keyrings.size()));
-            Shuffle(keyrings);
+                                              : ShipUtils::Random(0, static_cast<int>(keyrings.size()));
+            ShipUtils::Shuffle(keyrings);
             for (size_t i = 0; i < keyRingCount; i++) {
                 keyrings[i]->Set(RO_KEYRING_FOR_DUNGEON_ON);
             }
@@ -2701,49 +2739,50 @@ void Context::FinalizeSettings(const std::set<RandomizerCheck>& excludedLocation
             }
         }
         if (mOptions[RSK_KEYRINGS_BOTTOM_OF_THE_WELL].Is(RO_KEYRING_FOR_DUNGEON_ON) ||
-            (mOptions[RSK_KEYRINGS_BOTTOM_OF_THE_WELL].Is(RO_KEYRING_FOR_DUNGEON_RANDOM) && Random(0, 2) == 1)) {
+            (mOptions[RSK_KEYRINGS_BOTTOM_OF_THE_WELL].Is(RO_KEYRING_FOR_DUNGEON_RANDOM) &&
+             ShipUtils::Random(0, 2) == 0)) {
             this->GetDungeon(BOTTOM_OF_THE_WELL)->SetKeyRing();
         }
         if (mOptions[RSK_KEYRINGS_FOREST_TEMPLE].Is(RO_KEYRING_FOR_DUNGEON_ON) ||
-            (mOptions[RSK_KEYRINGS_FOREST_TEMPLE].Is(RO_KEYRING_FOR_DUNGEON_RANDOM) && Random(0, 2) == 1)) {
+            (mOptions[RSK_KEYRINGS_FOREST_TEMPLE].Is(RO_KEYRING_FOR_DUNGEON_RANDOM) && ShipUtils::Random(0, 2) == 0)) {
             this->GetDungeon(FOREST_TEMPLE)->SetKeyRing();
         }
         if (mOptions[RSK_KEYRINGS_FIRE_TEMPLE].Is(RO_KEYRING_FOR_DUNGEON_ON) ||
-            (mOptions[RSK_KEYRINGS_FIRE_TEMPLE].Is(RO_KEYRING_FOR_DUNGEON_RANDOM) && Random(0, 2) == 1)) {
+            (mOptions[RSK_KEYRINGS_FIRE_TEMPLE].Is(RO_KEYRING_FOR_DUNGEON_RANDOM) && ShipUtils::Random(0, 2) == 0)) {
             this->GetDungeon(FIRE_TEMPLE)->SetKeyRing();
         }
         if (mOptions[RSK_KEYRINGS_WATER_TEMPLE].Is(RO_KEYRING_FOR_DUNGEON_ON) ||
-            (mOptions[RSK_KEYRINGS_WATER_TEMPLE].Is(RO_KEYRING_FOR_DUNGEON_RANDOM) && Random(0, 2) == 1)) {
+            (mOptions[RSK_KEYRINGS_WATER_TEMPLE].Is(RO_KEYRING_FOR_DUNGEON_RANDOM) && ShipUtils::Random(0, 2) == 0)) {
             this->GetDungeon(WATER_TEMPLE)->SetKeyRing();
         }
         if (mOptions[RSK_KEYRINGS_SPIRIT_TEMPLE].Is(RO_KEYRING_FOR_DUNGEON_ON) ||
-            (mOptions[RSK_KEYRINGS_SPIRIT_TEMPLE].Is(RO_KEYRING_FOR_DUNGEON_RANDOM) && Random(0, 2) == 1)) {
+            (mOptions[RSK_KEYRINGS_SPIRIT_TEMPLE].Is(RO_KEYRING_FOR_DUNGEON_RANDOM) && ShipUtils::Random(0, 2) == 0)) {
             this->GetDungeon(SPIRIT_TEMPLE)->SetKeyRing();
         }
         if (mOptions[RSK_KEYRINGS_SHADOW_TEMPLE].Is(RO_KEYRING_FOR_DUNGEON_ON) ||
-            (mOptions[RSK_KEYRINGS_SHADOW_TEMPLE].Is(RO_KEYRING_FOR_DUNGEON_RANDOM) && Random(0, 2) == 1)) {
+            (mOptions[RSK_KEYRINGS_SHADOW_TEMPLE].Is(RO_KEYRING_FOR_DUNGEON_RANDOM) && ShipUtils::Random(0, 2) == 0)) {
             this->GetDungeon(SHADOW_TEMPLE)->SetKeyRing();
         }
         if (mOptions[RSK_KEYRINGS_GTG].Is(RO_KEYRING_FOR_DUNGEON_ON) ||
-            (mOptions[RSK_KEYRINGS_GTG].Is(RO_KEYRING_FOR_DUNGEON_RANDOM) && Random(0, 2) == 1)) {
+            (mOptions[RSK_KEYRINGS_GTG].Is(RO_KEYRING_FOR_DUNGEON_RANDOM) && ShipUtils::Random(0, 2) == 0)) {
             this->GetDungeon(GERUDO_TRAINING_GROUND)->SetKeyRing();
         }
         if (mOptions[RSK_KEYRINGS_GANONS_CASTLE].Is(RO_KEYRING_FOR_DUNGEON_ON) ||
-            (mOptions[RSK_KEYRINGS_GANONS_CASTLE].Is(RO_KEYRING_FOR_DUNGEON_RANDOM) && Random(0, 2) == 1)) {
+            (mOptions[RSK_KEYRINGS_GANONS_CASTLE].Is(RO_KEYRING_FOR_DUNGEON_RANDOM) && ShipUtils::Random(0, 2) == 0)) {
             this->GetDungeon(GANONS_CASTLE)->SetKeyRing();
         }
     }
 
     auto trials = this->GetTrials()->GetTrialList();
-    Shuffle(trials);
+    ShipUtils::Shuffle(trials);
     for (const auto trial : trials) {
         trial->SetAsSkipped();
     }
     if (mOptions[RSK_GANONS_TRIALS].Is(RO_GANONS_TRIALS_SKIP)) {
         mOptions[RSK_TRIAL_COUNT].Set(0);
     } else if (mOptions[RSK_GANONS_TRIALS].Is(RO_GANONS_TRIALS_RANDOM_NUMBER)) {
-        mOptions[RSK_TRIAL_COUNT].Set(
-            Random(0, static_cast<int>(Rando::Settings::GetInstance()->GetOption(RSK_TRIAL_COUNT).GetOptionCount())));
+        mOptions[RSK_TRIAL_COUNT].Set(ShipUtils::Random(
+            0, static_cast<int>(Rando::Settings::GetInstance()->GetOption(RSK_TRIAL_COUNT).GetOptionCount())));
     }
     for (uint8_t i = 0; i < mOptions[RSK_TRIAL_COUNT].Get(); i++) {
         trials[i]->SetAsRequired();
@@ -2785,7 +2824,7 @@ void Context::FinalizeSettings(const std::set<RandomizerCheck>& excludedLocation
     }
 
     if (mOptions[RSK_STARTING_AGE].Is(RO_AGE_RANDOM)) {
-        if (const uint32_t choice = Random(0, 2); choice == 0) {
+        if (const uint32_t choice = ShipUtils::Random(0, 2); choice == 0) {
             mOptions[RSK_SELECTED_STARTING_AGE].Set(RO_AGE_CHILD);
         } else {
             mOptions[RSK_SELECTED_STARTING_AGE].Set(RO_AGE_ADULT);
@@ -2910,7 +2949,7 @@ void Settings::RandomizeAllSettings() {
             continue;
         }
 
-        uint8_t randomIndex = Random(0, static_cast<uint32_t>(option.GetOptionCount()));
+        uint8_t randomIndex = ShipUtils::Random(0, static_cast<uint32_t>(option.GetOptionCount()));
 
         option.SetContextIndex(randomIndex);
         if (!option.GetCVarName().empty()) {
